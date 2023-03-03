@@ -4,7 +4,7 @@ import { Form } from '@/components/Form'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ElButton, ElCheckbox, ElLink } from 'element-plus'
 import { useForm } from '@/hooks/web/useForm'
-import { loginApi, getTestRoleApi, getAdminRoleApi } from '@/api/login'
+import { loginApi, getAdminRoleApi } from '@/api/login'
 import { useCache } from '@/hooks/web/useCache'
 import { useAppStore } from '@/store/modules/app'
 import { usePermissionStore } from '@/store/modules/permission'
@@ -111,17 +111,7 @@ const signIn = async () => {
 
         if (res) {
           wsCache.set(appStore.getUserInfo, res.data)
-          // 是否使用动态路由
-          if (appStore.getDynamicRouter) {
-            getRole()
-          } else {
-            await permissionStore.generateRoutes('none').catch(() => {})
-            permissionStore.getAddRouters.forEach((route) => {
-              addRoute(route as RouteRecordRaw) // 动态添加可访问路由表
-            })
-            permissionStore.setIsAddRouters(true)
-            push({ path: redirect.value || permissionStore.addRouters[0].path })
-          }
+          getRole()
         }
       } finally {
         loading.value = false
@@ -137,19 +127,12 @@ const getRole = async () => {
   const params = {
     roleName: formData.username
   }
-  // admin - 模拟后端过滤菜单
-  // test - 模拟前端过滤菜单
-  const res =
-    formData.username === 'admin' ? await getAdminRoleApi(params) : await getTestRoleApi(params)
+  const res = await getAdminRoleApi(params)
   if (res) {
     const { wsCache } = useCache()
     const routers = res.data || []
     wsCache.set('roleRouters', routers)
-
-    formData.username === 'admin'
-      ? await permissionStore.generateRoutes('admin', routers).catch(() => {})
-      : await permissionStore.generateRoutes('test', routers).catch(() => {})
-
+    await permissionStore.generateRoutes(routers).catch(() => {})
     permissionStore.getAddRouters.forEach((route) => {
       addRoute(route as RouteRecordRaw) // 动态添加可访问路由表
     })
